@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+<body>
+<h2>blogRoutes js</h2>
+<pre>
+    <!DOCTYPE html>
+    <html>
+    <body>
+    
+    <pre>
+     const express = require('express')
+    const blogController = require('./../controllers/blogController')
+    const appConfig = require("./../config/appConfig")
+    
+    
+    let setRouter = (app) => {
+        let baseUrl = appConfig.apiVersion+'/blogs';
+    
+        app.get(baseUrl+'/all',blogController.getAllBlog);
+    
+        app.get(baseUrl+'/view/:blogId',blogController.viewByBlogId);
+    
+        app.get(baseUrl+'/view/by/author/:author',blogController.viewByAuthor);
+    
+        app.get(baseUrl+'/view/by/category/:category',blogController.viewByCategory);
+    
+        app.post(baseUrl+'/:blogId/delete',blogController.deleteBlog);
+    
+        app.put(baseUrl+'/:blogId/edit',blogController.editBlog);
+    
+        app.post(baseUrl+'/create',blogController.createBlog);
+    
+        app.get(baseUrl+'/:blogId/count/view',blogController.increaseBlogView);
+    
+        
+    
+    }// end setRouter function 
+    
+    module.exports = {
+        setRouter: setRouter
+    }
+    </pre>
+    <h2>controllers js</h2>
+
+    <pre>
+        const express = require('express')
+
+
+let getAllBlog = (req, res) => {
+}
+let viewByBlogId = (req, res) => {}
+let viewByCategory = (req, res) => {}
+let viewByAuthor = (req, res) => {}
+let editBlog = (req, res) => {}
+let deleteBlog = (req, res) => {}
+let createBlog = (req, res) => {}
+let increaseBlogView = (req, res) => {}
+
+module.exports = {
+    getAllBlog: getAllBlog,
+    createBlog: createBlog,
+    viewByBlogId: viewByBlogId,
+    viewByCategory: viewByCategory,
+    viewByAuthor: viewByAuthor,
+    editBlog: editBlog,
+    deleteBlog: deleteBlog,
+    increaseBlogView: increaseBlogView
+}
+    </pre>
+    </body>
+    </html>
+    
+</pre>
+<h2>index.js</h2>
+<pre>
+    // this is needed for importing expressjs into our application
+const express = require('express')
+const appConfig = require('./config/appConfig')
+const fs = require('fs')
+const mongoose = require('mongoose')
+const cookieParser = require('cookie-parser')
+const bodyParser = require('body-parser')
+
+//declaring an instance or creating an application instance
+const app = express()
+
+//middlewares
+app.use(bodyParser.json())
+app.use(bodyParser.urlencoded({ extended: false }))
+app.use(cookieParser())
+
+
+
+
+// Bootstrap models
+let modelsPath = './models'
+fs.readdirSync(modelsPath).forEach(function (file) {
+    if (~file.indexOf('.js')) {
+        console.log(file)
+        require(modelsPath + '/' + file)
+    }
+  })
+  // end Bootstrap models
+
+
+// Bootstrap route
+let routesPath = './routes'
+fs.readdirSync(routesPath).forEach(function (file) {
+    if (~file.indexOf('.js')) {
+        console.log("including the following file");
+        console.log(routesPath + '/' + file)
+        let route = require(routesPath + '/' + file);
+        route.setRouter(app);
+    }
+});
+// end bootstrap route
+
+
+
+//listening the server - creating a local server
+app.listen(appConfig.port, () => {
+    console.log('Example app listening on port 3000!');
+    //creating the mongo db connection here
+    let db = mongoose.connect(appConfig.db.uri, { useMongoClient: true });
+
+})
+
+
+// handling mongoose connection error
+mongoose.connection.on('error', function (err) {
+    console.log('database connection error');
+    console.log(err)
+
+}); // end mongoose connection error
+
+// handling mongoose success event
+mongoose.connection.on('open', function (err) {
+    if (err) {
+        console.log("database error");
+        console.log(err);
+
+    } else {
+        console.log("database connection open success");
+    }
+
+}); // end mongoose connection open handler
+</pre>
+<h2>
+    Config js
+</h2>
+<pre>
+    let appConfig = {};
+
+appConfig.port = 3000;
+appConfig.allowedCorsOrigin = "*";
+appConfig.env = "dev";
+appConfig.db = {
+    uri: 'mongodb://127.0.0.1:27017/blogAppDB',
+}
+appConfig.apiVersion = '/api/v1';
+
+module.exports = {
+
+    port: appConfig.port,
+    allowedCorsOrigin: appConfig.allowedCorsOrigin,
+    environment: appConfig.env,
+    db: appConfig.db,
+    apiVersion: appConfig.apiVersion
+
+}// end module exports
+</pre>
+<h2>Using middleware index js </h2>
+<pre>
+
+    // this is needed for importing expressjs into our application
+const express = require('express')
+const appConfig = require('./config/appConfig')
+const fs = require('fs')
+const mongoose = require('mongoose')
+const cookieParser = require('cookie-parser')
+const bodyParser = require('body-parser')
+const globalErrorMiddleware = require('./middlewares/appErrorHandler')
+const routeLoggerMiddleware = require('./middlewares/routeLogger')
+
+
+//declaring an instance or creating an application instance
+const app = express()
+
+//middlewares
+app.use(bodyParser.json())
+app.use(bodyParser.urlencoded({ extended: false }))
+app.use(cookieParser())
+
+app.use(globalErrorMiddleware.globalErrorHandler)
+app.use(routeLoggerMiddleware.logIp)
+
+
+
+// Bootstrap models
+let modelsPath = './models'
+fs.readdirSync(modelsPath).forEach(function (file) {
+    if (~file.indexOf('.js')) {
+        console.log(file)
+        require(modelsPath + '/' + file)
+    }
+  })
+  // end Bootstrap models
+
+
+
+// Bootstrap route
+let routesPath = './routes'
+fs.readdirSync(routesPath).forEach(function (file) {
+    if (~file.indexOf('.js')) {
+        console.log("including the following file");
+        console.log(routesPath + '/' + file)
+        let route = require(routesPath + '/' + file);
+        route.setRouter(app);
+    }
+});
+// end bootstrap route
+
+
+  // calling global 404 handler after route
+
+  app.use(globalErrorMiddleware.globalNotFoundHandler)
+
+  // end global 404 handler
+
+
+//listening the server - creating a local server
+app.listen(appConfig.port, () => {
+    console.log('Example app listening on port 3000!');
+    //creating the mongo db connection here
+    let db = mongoose.connect(appConfig.db.uri, { useMongoClient: true });
+
+})
+
+
+// handling mongoose connection error
+mongoose.connection.on('error', function (err) {
+    console.log('database connection error');
+    console.log(err)
+
+}); // end mongoose connection error
+
+// handling mongoose success event
+mongoose.connection.on('open', function (err) {
+    if (err) {
+        console.log("database error");
+        console.log(err);
+
+    } else {
+        console.log("database connection open success");
+    }
+
+}); // end mongoose connection open handler
+</pre>
+<h1>Middleware Part start</h1>
+<h3>appErrorHandler</h3>
+<pre>
+    
+let errorHandler = (err,req, res, next) => {
+    console.log("application error handler called");
+    console.log(err);
+    res.send('Some error occured at global level')
+  
+    
+}// end request ip logger function 
+
+let notFoundHandler = (req,res,next)=>{
+
+    console.log("Global not found handler called");
+    res.status(404).send('Route not found in the application')
+
+}// end not found handler
+
+module.exports = {
+    globalErrorHandler : errorHandler,
+    globalNotFoundHandler : notFoundHandler
+}
+
+</pre>
+<h3>routeLogger.js</h3>
+<pre>
+    const appConfig = require('./../config/appConfig');
+
+
+let requestIpLogger = (req, res, next) => {
+    
+    let remoteIp = req.connection.remoteAddress + '://' + req.connection.remotePort;
+    let realIp = req.headers['X-REAL-IP'];
+    console.log(req.method+" Request Made from " + remoteIp + ' for route' + req.originalUrl);
+
+    if (req.method === 'OPTIONS') {
+        console.log('!OPTIONS');
+        var headers = {};
+        // IE8 does not allow domains to be specified, just the *
+        // headers["Access-Control-Allow-Origin"] = req.headers.origin;
+        headers["Access-Control-Allow-Origin"] = "*";
+        headers["Access-Control-Allow-Methods"] = "POST, GET, PUT, DELETE, OPTIONS";
+        headers["Access-Control-Allow-Credentials"] = false;
+        headers["Access-Control-Max-Age"] = '86400'; // 24 hours
+        headers["Access-Control-Allow-Headers"] = "X-Requested-With, X-HTTP-Method-Override, Content-Type, Accept";
+        res.writeHead(200, headers);
+        res.end();
+  } 
+  else{
+
+     // enable or disable cors here 
+     res.header("Access-Control-Allow-Origin", appConfig.allowedCorsOrigin);
+     res.header('Access-Control-Allow-Methods', 'GET, PUT, POST, DELETE, OPTIONS');
+     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+     //console.log(res.header)
+     // end cors config
+     
+     next();
+  }
+    
+  
+}// end request ip logger function  
+
+module.exports = {
+    logIp: requestIpLogger
+}
+
+</pre>
+
+</body>
+</html>
